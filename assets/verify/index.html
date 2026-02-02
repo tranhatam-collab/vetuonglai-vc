@@ -12,16 +12,48 @@
     <p>Nhập mã chứng chỉ (hoặc quét QR) để kiểm tra tính xác thực.</p>
 
     <input id="code" type="text" placeholder="Ví dụ: VC-2026-0001" autocomplete="off" />
-    <button disabled>Kiểm tra (sắp mở)</button>
+    <button id="btn">Kiểm tra</button>
 
-    <p class="note">
-      Giai đoạn 1: dựng khung xác minh.  
-      Giai đoạn 2: nối dữ liệu xác minh (Workers/Blockchain) theo chuẩn riêng tư.
-    </p>
+    <div id="result" class="note" style="text-align:left; white-space:pre-wrap;"></div>
 
     <p style="margin-top:18px;">
       <a href="/">← Quay lại VC</a>
     </p>
   </main>
+
+  <script>
+    const $code = document.getElementById("code");
+    const $btn = document.getElementById("btn");
+    const $result = document.getElementById("result");
+
+    function show(obj) {
+      $result.textContent = JSON.stringify(obj, null, 2);
+    }
+
+    async function verify() {
+      const code = ($code.value || "").trim();
+      if (!code) {
+        show({ ok:false, message_vi:"Vui lòng nhập mã chứng chỉ." });
+        return;
+      }
+      $btn.disabled = true;
+      $btn.textContent = "Đang kiểm tra...";
+      try {
+        const res = await fetch(`/api/verify?code=${encodeURIComponent(code)}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({ ok:false, message_vi:"Không đọc được dữ liệu trả về." }));
+        show(data);
+      } catch (e) {
+        show({ ok:false, message_vi:"Lỗi kết nối. Vui lòng thử lại." });
+      } finally {
+        $btn.disabled = false;
+        $btn.textContent = "Kiểm tra";
+      }
+    }
+
+    $btn.addEventListener("click", verify);
+    $code.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") verify();
+    });
+  </script>
 </body>
 </html>

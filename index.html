@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Chứng Chỉ Số & Xác Minh | Về Tương Lai</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header>
+    <nav class="nav">
+      <a class="brand" href="/">VC</a>
+      <div class="links">
+        <a href="/verify/">Xác minh</a>
+        <a class="muted" href="/issue/">Cấp chứng chỉ</a>
+        <a class="muted" href="https://vetuonglai.com/vi/">← Về Tương Lai</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h1>Chứng Chỉ Số & Xác Minh</h1>
+    <p class="lead">
+      Nơi xác minh chứng chỉ số theo cách minh bạch, kiểm tra nhanh, không lộ thông tin thừa.
+      Đây là xương sống để mở rộng Web3 về sau.
+    </p>
+
+    <section class="grid">
+      <a class="card" href="/verify/">
+        <h3>Xác minh</h3>
+        <p>Nhập mã hoặc quét QR để kiểm tra chứng chỉ.</p>
+        <div class="go">Mở trang xác minh →</div>
+      </a>
+
+      <div class="card disabled">
+        <h3>Cấp chứng chỉ</h3>
+        <p>Sắp mở. Dành cho tổ chức đã được xác thực.</p>
+        <div class="go muted">Đang khóa</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>© <span id="y"></span> Vetuonglai VC</div>
+  </footer>
+
+  <script>
+    document.getElementById("y").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

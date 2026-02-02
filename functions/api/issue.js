@@ -24,7 +24,19 @@ export async function onRequestPost(context) {
     return json({ ok:false, error:"missing_fields", message_vi:"Thiếu code/name/issuer/issuedAt." }, 400);
   }
 
-  // Lưu đúng "minh bạch vừa đủ" (không chứa dữ liệu cá nhân)
+  // ✅ KHÓA: không cho ghi đè nếu đã tồn tại
+  const existing = await env.VC_KV.get(code);
+  if (existing) {
+    return json({
+      ok: false,
+      error: "already_exists",
+      code,
+      message_vi: "Mã chứng chỉ đã tồn tại. Không thể phát hành lại để tránh chỉnh sửa chứng chỉ cũ.",
+      message_en: "Code already exists. Overwrite is locked."
+    }, 409);
+  }
+
+  // Lưu đúng "minh bạch vừa đủ" (không dữ liệu cá nhân)
   const record = {
     code,
     name,
@@ -35,8 +47,15 @@ export async function onRequestPost(context) {
     note
   };
 
-  // Ghi KV (ghi đè = cập nhật bản mới; nếu anh muốn khóa ghi đè, em sẽ đổi logic sau)
   await env.VC_KV.put(code, JSON.stringify(record));
+
+  // ✅ Append-only audit log (không lộ dữ liệu thừa)
+  await appendAudit(env, {
+    action: "issue",
+    code,
+    issuer,
+    issuedAt
+  });
 
   return json({
     ok: true,
@@ -51,6 +70,25 @@ export async function onRequestPost(context) {
 function publicView(r){
   return { code:r.code, name:r.name, issuer:r.issuer, issuedAt:r.issuedAt, expiresAt:r.expiresAt || null, note:r.note || null };
 }
+
+// ===== Audit (append-only) =====
+// Lưu mỗi action thành 1 key riêng, không ghi đè.
+// Key format: AUDIT:<code>:<timestamp>:<rand>
+async function appendAudit(env, data){
+  const ts = new Date().toISOString(); // UTC ISO
+  const rand = Math.random().toString(36).slice(2, 10);
+  const key = `AUDIT:${data.code}:${ts}:${rand}`;
+  const entry = {
+    v: 1,
+    at: ts,
+    action: data.action,
+    code: data.code,
+    issuer: data.issuer || null,
+    issuedAt: data.issuedAt || null
+  };
+  await env.VC_KV.put(key, JSON.stringify(entry));
+}
+
 function json(obj, status=200){
   return new Response(JSON.stringify(obj, null, 2), {
     status,

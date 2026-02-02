@@ -14,25 +14,48 @@
     <input id="code" type="text" placeholder="Ví dụ: VC-2026-0001" autocomplete="off" />
     <button id="btn">Kiểm tra</button>
 
+    <button id="scan" class="ghost" style="width:100%; margin-top:10px;">Quét QR bằng camera</button>
+
+    <!-- QR Scanner Panel -->
+    <div id="scanner" class="panel" hidden>
+      <div class="badge muted">QR SCAN</div>
+      <div class="title">Đưa QR vào giữa khung</div>
+
+      <video id="video" playsinline
+        style="width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.08); margin-top:10px;"></video>
+
+      <div class="note" id="scanNote">Đang mở camera…</div>
+
+      <div class="actions">
+        <button class="ghost" id="stop">Tắt camera</button>
+      </div>
+    </div>
+
+    <!-- Result Panel -->
     <div id="panel" class="panel" hidden>
       <div class="badge" id="badge">—</div>
       <div class="title" id="t">—</div>
       <div class="meta" id="m"></div>
       <div class="noteBox" id="n" hidden></div>
+
       <div class="actions">
         <button class="ghost" id="copy">Copy link</button>
         <a class="ghost" href="/">Trang VC</a>
+        <a class="ghost" href="https://vetuonglai.com/vi/">Về Tương Lai</a>
       </div>
     </div>
 
     <div id="hint" class="note" style="margin-top:14px;">
-      Mẹo: Bạn có thể mở thẳng bằng link dạng <code>/verify/?code=VC-2026-0001</code>
+      Mẹo: Có thể mở thẳng bằng link dạng <code>/verify/?code=VC-2026-0001</code>
     </div>
 
     <p style="margin-top:18px;">
       <a href="/">← Quay lại VC</a>
     </p>
   </main>
+
+  <!-- QR decoder library -->
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
   <script>
     const $code = document.getElementById("code");
@@ -44,6 +67,20 @@
     const $n = document.getElementById("n");
     const $copy = document.getElementById("copy");
 
+    // QR elements
+    const $scan = document.getElementById("scan");
+    const $scanner = document.getElementById("scanner");
+    const $video = document.getElementById("video");
+    const $stop = document.getElementById("stop");
+    const $scanNote = document.getElementById("scanNote");
+
+    // Canvas for scanning frames
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    let stream = null;
+    let rafId = null;
+
     function setStatus(status) {
       $badge.className = "badge";
       if (status === "valid") { $badge.textContent = "HỢP LỆ"; $badge.classList.add("ok"); }
@@ -53,13 +90,13 @@
       else { $badge.textContent = "LỖI"; $badge.classList.add("bad"); }
     }
 
+    function escapeHtml(s){
+      return String(s||"").replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+
     function fmtRow(label, value) {
       const v = value ?? "—";
       return `<div class="row"><div class="k">${label}</div><div class="v">${escapeHtml(String(v))}</div></div>`;
-    }
-
-    function escapeHtml(s){
-      return s.replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     }
 
     function showRecord(data){
@@ -131,7 +168,79 @@
       }
     });
 
-    // Auto-run if URL has ?code=
+    // ----- QR SCAN -----
+    async function startScan() {
+      try {
+        $scanner.hidden = false;
+        $scanNote.textContent = "Xin quyền camera…";
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false
+        });
+        $video.srcObject = stream;
+        await $video.play();
+        $scanNote.textContent = "Đang quét…";
+        tick();
+      } catch (e) {
+        $scanNote.textContent = "Không mở được camera. Hãy kiểm tra quyền camera trên trình duyệt.";
+      }
+    }
+
+    function stopScan() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      $video.srcObject = null;
+      $scanner.hidden = true;
+    }
+
+    function extractCode(text) {
+      // QR có thể là code hoặc URL
+      const s = (text || "").trim();
+      if (!s) return "";
+      try {
+        if (s.startsWith("http")) {
+          const u = new URL(s);
+          const c = (u.searchParams.get("code") || "").trim();
+          return c || s;
+        }
+        return s;
+      } catch {
+        return s;
+      }
+    }
+
+    function tick() {
+      if (!$video.videoWidth) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+      canvas.width = $video.videoWidth;
+      canvas.height = $video.videoHeight;
+      ctx.drawImage($video, 0, 0, canvas.width, canvas.height);
+
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const qr = jsQR(img.data, img.width, img.height);
+
+      if (qr && qr.data) {
+        const code = extractCode(qr.data);
+        if (code) {
+          $code.value = code;
+          stopScan();
+          verify(code);
+          return;
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    }
+
+    $scan.addEventListener("click", startScan);
+    $stop.addEventListener("click", stopScan);
+
+    // Auto verify if ?code=
     const q = new URLSearchParams(location.search);
     const preset = (q.get("code") || "").trim();
     if (preset) {

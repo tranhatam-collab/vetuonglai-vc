@@ -8,19 +8,130 @@
 </head>
 <body>
   <main class="center">
-    <h1>Khu vực dành cho tổ chức</h1>
-    <p>
-      Chức năng cấp chứng chỉ sẽ được mở cho các đơn vị đã được xác thực.
-      Hiện tại hệ thống đang ở giai đoạn dựng nền.
-    </p>
+    <h1>Cấp Chứng Chỉ</h1>
+    <p>Khu vực dành cho tổ chức. Dữ liệu phát hành được lưu minh bạch vừa đủ, không lộ thông tin thừa.</p>
 
-    <p class="note">
-      Lý do khóa: tránh phát hành bừa, giữ uy tín hệ thống ngay từ đầu.
-    </p>
+    <div class="panel" style="text-align:left;">
+      <div class="badge muted">ISSUE</div>
 
-    <p style="margin-top:18px;">
-      <a href="/">← Quay lại VC</a>
-    </p>
+      <label class="k">Mã phát hành (Issue Secret)</label>
+      <input id="secret" type="password" placeholder="Nhập mã phát hành…" />
+
+      <label class="k">Mã chứng chỉ (Code)</label>
+      <input id="code" placeholder="VC-2026-0003" />
+
+      <label class="k">Tên chứng chỉ</label>
+      <input id="name" placeholder="Chứng Chỉ …" />
+
+      <label class="k">Đơn vị cấp (Issuer)</label>
+      <input id="issuer" placeholder="Về Tương Lai" />
+
+      <label class="k">Ngày cấp (YYYY-MM-DD)</label>
+      <input id="issuedAt" placeholder="2026-02-02" />
+
+      <label class="k">Hết hạn (YYYY-MM-DD hoặc để trống)</label>
+      <input id="expiresAt" placeholder="2028-02-02" />
+
+      <label class="k">Ghi chú (tuỳ chọn)</label>
+      <input id="note" placeholder="Ví dụ: Demo record để kiểm tra hệ thống." />
+
+      <div class="actions">
+        <button id="btnIssue" class="ghost">Phát hành</button>
+        <button id="btnRevoke" class="ghost">Thu hồi</button>
+        <a class="ghost" href="/verify/">Đi xác minh</a>
+        <a class="ghost" href="/">Trang VC</a>
+      </div>
+    </div>
+
+    <div id="out" class="note" style="white-space:pre-wrap; text-align:left; margin-top:14px;"></div>
   </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const out = $("out");
+
+    function today() {
+      const d = new Date();
+      const mm = String(d.getMonth()+1).padStart(2,"0");
+      const dd = String(d.getDate()).padStart(2,"0");
+      return `${d.getFullYear()}-${mm}-${dd}`;
+    }
+    $("issuedAt").value = today();
+    $("issuer").value = "Về Tương Lai";
+
+    function show(x){ out.textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2); }
+
+    function payloadBase(){
+      return {
+        secret: ($("secret").value || "").trim(),
+        code: ($("code").value || "").trim(),
+      };
+    }
+
+    $("btnIssue").addEventListener("click", async () => {
+      const payload = {
+        ...payloadBase(),
+        name: ($("name").value || "").trim(),
+        issuer: ($("issuer").value || "").trim(),
+        issuedAt: ($("issuedAt").value || "").trim(),
+        expiresAt: ($("expiresAt").value || "").trim() || null,
+        note: ($("note").value || "").trim() || null
+      };
+
+      if (!payload.secret || !payload.code || !payload.name || !payload.issuer || !payload.issuedAt) {
+        show("Thiếu thông tin bắt buộc: secret, code, name, issuer, issuedAt");
+        return;
+      }
+
+      show("Đang phát hành…");
+      try {
+        const res = await fetch("/api/issue", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const code = (data && data.code) ? data.code : payload.code.toUpperCase();
+        if (data.ok) {
+          const share = `${location.origin}/v/${encodeURIComponent(code)}`;
+          const verify = `${location.origin}/verify/?code=${encodeURIComponent(code)}`;
+          show({ ...data, share, verify });
+        } else {
+          show(data);
+        }
+      } catch (e) {
+        show("Lỗi kết nối. Vui lòng thử lại.");
+      }
+    });
+
+    $("btnRevoke").addEventListener("click", async () => {
+      const payload = {
+        ...payloadBase(),
+        reason: "revoked_by_issuer"
+      };
+      if (!payload.secret || !payload.code) {
+        show("Thiếu thông tin bắt buộc: secret, code");
+        return;
+      }
+
+      if (!confirm("Xác nhận THU HỒI chứng chỉ này?")) return;
+
+      show("Đang thu hồi…");
+      try {
+        const res = await fetch("/api/revoke", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const code = (data && data.code) ? data.code : payload.code.toUpperCase();
+        const share = `${location.origin}/v/${encodeURIComponent(code)}`;
+        const verify = `${location.origin}/verify/?code=${encodeURIComponent(code)}`;
+        show({ ...data, share, verify });
+      } catch (e) {
+        show("Lỗi kết nối. Vui lòng thử lại.");
+      }
+    });
+  </script>
 </body>
 </html>

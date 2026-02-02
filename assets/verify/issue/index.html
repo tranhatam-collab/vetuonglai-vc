@@ -9,7 +9,7 @@
 <body>
   <main class="center">
     <h1>Cấp Chứng Chỉ</h1>
-    <p>Khu vực dành cho tổ chức. Dữ liệu phát hành được lưu minh bạch vừa đủ, không lộ thông tin thừa.</p>
+    <p>Khu vực dành cho tổ chức. Hệ thống ưu tiên “không chỉnh sửa chứng chỉ cũ”, chỉ cập nhật mới và thu hồi minh bạch.</p>
 
     <div class="panel" style="text-align:left;">
       <div class="badge muted">ISSUE</div>
@@ -17,8 +17,14 @@
       <label class="k">Mã phát hành (Issue Secret)</label>
       <input id="secret" type="password" placeholder="Nhập mã phát hành…" />
 
-      <label class="k">Mã chứng chỉ (Code)</label>
-      <input id="code" placeholder="VC-2026-0003" />
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <div style="flex:1; min-width:220px;">
+          <label class="k">Mã chứng chỉ (Code)</label>
+          <input id="code" placeholder="VC-2026-0001" />
+        </div>
+        <button id="btnAuto" class="ghost" style="white-space:nowrap;">Tạo mã tự động</button>
+        <button id="btnNew" class="ghost" style="white-space:nowrap;">Tạo mã khác</button>
+      </div>
 
       <label class="k">Tên chứng chỉ</label>
       <input id="name" placeholder="Chứng Chỉ …" />
@@ -43,12 +49,66 @@
       </div>
     </div>
 
+    <!-- RESULT -->
+    <div id="result" class="panel" hidden style="text-align:left; margin-top:14px;">
+      <div class="badge muted">RESULT</div>
+      <div class="title" id="resTitle">—</div>
+      <div class="note" id="resJson" style="white-space:pre-wrap;"></div>
+
+      <div id="links" style="margin-top:10px;" hidden>
+        <div class="row"><div class="k">Share</div><div class="v" id="shareLink" style="text-align:right; word-break:break-word;"></div></div>
+        <div class="row"><div class="k">Verify</div><div class="v" id="verifyLink" style="text-align:right; word-break:break-word;"></div></div>
+
+        <div class="actions" style="margin-top:12px;">
+          <button class="ghost" id="copyShare">Copy share</button>
+          <button class="ghost" id="copyVerify">Copy verify</button>
+          <a class="ghost" id="openShare" href="#" target="_blank" rel="noopener">Mở share</a>
+          <a class="ghost" id="openVerify" href="#" target="_blank" rel="noopener">Mở verify</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR -->
+    <div id="qrPanel" class="panel" hidden style="text-align:center; margin-top:14px;">
+      <div class="badge muted">QR</div>
+      <div class="title">QR Xác Minh</div>
+      <div class="note">QR trỏ về link share /v/… (đẹp nhất). Trang verify sẽ tự nhận mã.</div>
+      <div id="qr" style="display:flex; justify-content:center; margin-top:10px;"></div>
+
+      <div class="actions" style="justify-content:center; margin-top:12px;">
+        <button class="ghost" id="downloadQR">Tải QR</button>
+        <button class="ghost" id="print">In</button>
+      </div>
+    </div>
+
     <div id="out" class="note" style="white-space:pre-wrap; text-align:left; margin-top:14px;"></div>
   </main>
 
+  <script src="https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js"></script>
+
   <script>
     const $ = (id) => document.getElementById(id);
+
     const out = $("out");
+    const result = $("result");
+    const resTitle = $("resTitle");
+    const resJson = $("resJson");
+    const links = $("links");
+    const shareLinkEl = $("shareLink");
+    const verifyLinkEl = $("verifyLink");
+    const openShare = $("openShare");
+    const openVerify = $("openVerify");
+
+    const qrPanel = $("qrPanel");
+    const qrBox = $("qr");
+    let qrInstance = null;
+
+    function showOut(x){ out.textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2); }
+    function showRes(title, data){
+      result.hidden = false;
+      resTitle.textContent = title;
+      resJson.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    }
 
     function today() {
       const d = new Date();
@@ -56,16 +116,99 @@
       const dd = String(d.getDate()).padStart(2,"0");
       return `${d.getFullYear()}-${mm}-${dd}`;
     }
-    $("issuedAt").value = today();
-    $("issuer").value = "Về Tương Lai";
 
-    function show(x){ out.textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2); }
+    function genCode(seed){
+      const year = new Date().getFullYear();
+      const n = (seed ?? Math.floor(Math.random()*9000 + 1000)); // 1000-9999
+      return `VC-${year}-${String(n).padStart(4,"0")}`;
+    }
+
+    function setAutoCode(){
+      $("code").value = genCode();
+    }
+
+    function ensureCode(){
+      const c = ($("code").value || "").trim().toUpperCase();
+      if (!c) { setAutoCode(); return ($("code").value || "").trim().toUpperCase(); }
+      $("code").value = c;
+      return c;
+    }
 
     function payloadBase(){
       return {
         secret: ($("secret").value || "").trim(),
-        code: ($("code").value || "").trim(),
+        code: ensureCode()
       };
+    }
+
+    async function copyText(txt){
+      try { await navigator.clipboard.writeText(txt); return true; }
+      catch { prompt("Copy:", txt); return false; }
+    }
+
+    function renderQR(text, filenameBase){
+      qrPanel.hidden = false;
+      qrBox.innerHTML = "";
+      qrInstance = new QRCode(qrBox, {
+        text,
+        width: 220,
+        height: 220,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      $("downloadQR").onclick = () => {
+        const img = qrBox.querySelector("img");
+        const canvas = qrBox.querySelector("canvas");
+        const url = img ? img.src : (canvas ? canvas.toDataURL("image/png") : "");
+        if (!url) { alert("Không tải được QR. Thử lại."); return; }
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (filenameBase || "qr") + ".png";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      };
+
+      $("print").onclick = () => window.print();
+    }
+
+    // Init defaults
+    $("issuedAt").value = today();
+    $("issuer").value = "Về Tương Lai";
+    setAutoCode();
+
+    $("btnAuto").addEventListener("click", (e) => {
+      e.preventDefault();
+      ensureCode();
+      showOut("Đã tạo mã tự động.");
+    });
+
+    $("btnNew").addEventListener("click", (e) => {
+      e.preventDefault();
+      setAutoCode();
+      showOut("Đã tạo mã mới.");
+    });
+
+    $("copyShare").addEventListener("click", async () => {
+      const txt = shareLinkEl.textContent || "";
+      if (!txt) return;
+      const ok = await copyText(txt);
+      if (ok) flash("copyShare");
+    });
+
+    $("copyVerify").addEventListener("click", async () => {
+      const txt = verifyLinkEl.textContent || "";
+      if (!txt) return;
+      const ok = await copyText(txt);
+      if (ok) flash("copyVerify");
+    });
+
+    function flash(id){
+      const b = $(id);
+      const t = b.textContent;
+      b.textContent = "Đã copy ✓";
+      setTimeout(()=> b.textContent = t, 1000);
     }
 
     $("btnIssue").addEventListener("click", async () => {
@@ -79,11 +222,11 @@
       };
 
       if (!payload.secret || !payload.code || !payload.name || !payload.issuer || !payload.issuedAt) {
-        show("Thiếu thông tin bắt buộc: secret, code, name, issuer, issuedAt");
+        showRes("Thiếu thông tin", { ok:false, message_vi:"Thiếu secret, code, name, issuer, issuedAt." });
         return;
       }
 
-      show("Đang phát hành…");
+      showOut("Đang phát hành…");
       try {
         const res = await fetch("/api/issue", {
           method: "POST",
@@ -91,32 +234,53 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        const code = (data && data.code) ? data.code : payload.code.toUpperCase();
+
+        // Nếu trùng code (overwrite locked) thì tự tạo code mới và báo rõ
+        if (!data.ok && data.error === "already_exists") {
+          const old = payload.code;
+          setAutoCode();
+          const neu = ($("code").value || "").trim().toUpperCase();
+          showRes("Mã đã tồn tại (đã khóa ghi đè)", {
+            ...data,
+            hint_vi: "Hệ thống đã khóa ghi đè để tránh chỉnh sửa chứng chỉ cũ. Vui lòng bấm 'Phát hành' lại với mã mới.",
+            old_code: old,
+            new_code_suggested: neu
+          });
+          showOut("Mã đã tồn tại. Đã gợi ý mã mới. Bấm 'Phát hành' lại.");
+          return;
+        }
+
+        const code = (data && data.code) ? String(data.code).toUpperCase() : payload.code;
+        const share = `${location.origin}/v/${encodeURIComponent(code)}`;
+        const verify = `${location.origin}/verify/?code=${encodeURIComponent(code)}`;
+
+        showRes(data.ok ? "Phát hành thành công" : "Phát hành thất bại", data);
+        showOut(data);
+
+        // Show links + QR if ok
         if (data.ok) {
-          const share = `${location.origin}/v/${encodeURIComponent(code)}`;
-          const verify = `${location.origin}/verify/?code=${encodeURIComponent(code)}`;
-          show({ ...data, share, verify });
-        } else {
-          show(data);
+          links.hidden = false;
+          shareLinkEl.textContent = share;
+          verifyLinkEl.textContent = verify;
+          openShare.href = share;
+          openVerify.href = verify;
+
+          renderQR(share, code); // QR trỏ về /v/<code>
         }
       } catch (e) {
-        show("Lỗi kết nối. Vui lòng thử lại.");
+        showRes("Lỗi kết nối", "Vui lòng thử lại.");
       }
     });
 
     $("btnRevoke").addEventListener("click", async () => {
-      const payload = {
-        ...payloadBase(),
-        reason: "revoked_by_issuer"
-      };
+      const payload = { ...payloadBase(), reason: "revoked_by_issuer" };
       if (!payload.secret || !payload.code) {
-        show("Thiếu thông tin bắt buộc: secret, code");
+        showRes("Thiếu thông tin", { ok:false, message_vi:"Thiếu secret, code." });
         return;
       }
-
       if (!confirm("Xác nhận THU HỒI chứng chỉ này?")) return;
 
-      show("Đang thu hồi…");
+      showOut("Đang thu hồi…");
       try {
         const res = await fetch("/api/revoke", {
           method: "POST",
@@ -124,12 +288,23 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        const code = (data && data.code) ? data.code : payload.code.toUpperCase();
+
+        const code = (data && data.code) ? String(data.code).toUpperCase() : payload.code;
         const share = `${location.origin}/v/${encodeURIComponent(code)}`;
         const verify = `${location.origin}/verify/?code=${encodeURIComponent(code)}`;
-        show({ ...data, share, verify });
+
+        showRes("Kết quả thu hồi", data);
+        showOut(data);
+
+        links.hidden = false;
+        shareLinkEl.textContent = share;
+        verifyLinkEl.textContent = verify;
+        openShare.href = share;
+        openVerify.href = verify;
+
+        renderQR(share, code);
       } catch (e) {
-        show("Lỗi kết nối. Vui lòng thử lại.");
+        showRes("Lỗi kết nối", "Vui lòng thử lại.");
       }
     });
   </script>

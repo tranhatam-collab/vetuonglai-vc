@@ -14,7 +14,20 @@
     <input id="code" type="text" placeholder="Ví dụ: VC-2026-0001" autocomplete="off" />
     <button id="btn">Kiểm tra</button>
 
-    <div id="result" class="note" style="text-align:left; white-space:pre-wrap;"></div>
+    <div id="panel" class="panel" hidden>
+      <div class="badge" id="badge">—</div>
+      <div class="title" id="t">—</div>
+      <div class="meta" id="m"></div>
+      <div class="noteBox" id="n" hidden></div>
+      <div class="actions">
+        <button class="ghost" id="copy">Copy link</button>
+        <a class="ghost" href="/">Trang VC</a>
+      </div>
+    </div>
+
+    <div id="hint" class="note" style="margin-top:14px;">
+      Mẹo: Bạn có thể mở thẳng bằng link dạng <code>/verify/?code=VC-2026-0001</code>
+    </div>
 
     <p style="margin-top:18px;">
       <a href="/">← Quay lại VC</a>
@@ -24,36 +37,107 @@
   <script>
     const $code = document.getElementById("code");
     const $btn = document.getElementById("btn");
-    const $result = document.getElementById("result");
+    const $panel = document.getElementById("panel");
+    const $badge = document.getElementById("badge");
+    const $t = document.getElementById("t");
+    const $m = document.getElementById("m");
+    const $n = document.getElementById("n");
+    const $copy = document.getElementById("copy");
 
-    function show(obj) {
-      $result.textContent = JSON.stringify(obj, null, 2);
+    function setStatus(status) {
+      $badge.className = "badge";
+      if (status === "valid") { $badge.textContent = "HỢP LỆ"; $badge.classList.add("ok"); }
+      else if (status === "revoked") { $badge.textContent = "THU HỒI"; $badge.classList.add("bad"); }
+      else if (status === "expired") { $badge.textContent = "HẾT HẠN"; $badge.classList.add("warn"); }
+      else if (status === "not_found") { $badge.textContent = "KHÔNG TÌM THẤY"; $badge.classList.add("muted"); }
+      else { $badge.textContent = "LỖI"; $badge.classList.add("bad"); }
     }
 
-    async function verify() {
-      const code = ($code.value || "").trim();
-      if (!code) {
-        show({ ok:false, message_vi:"Vui lòng nhập mã chứng chỉ." });
+    function fmtRow(label, value) {
+      const v = value ?? "—";
+      return `<div class="row"><div class="k">${label}</div><div class="v">${escapeHtml(String(v))}</div></div>`;
+    }
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, (c)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+
+    function showRecord(data){
+      $panel.hidden = false;
+      setStatus(data.status);
+
+      if (data.status === "not_found") {
+        $t.textContent = "Không tìm thấy chứng chỉ";
+        $m.innerHTML = fmtRow("Mã", data.code);
+        $n.hidden = true;
         return;
       }
+
+      const r = data.record || {};
+      $t.textContent = r.name || "Chứng chỉ";
+      $m.innerHTML =
+        fmtRow("Mã", r.code) +
+        fmtRow("Đơn vị cấp", r.issuer) +
+        fmtRow("Ngày cấp", r.issuedAt) +
+        fmtRow("Hết hạn", r.expiresAt || "Không");
+
+      if (r.note) {
+        $n.hidden = false;
+        $n.textContent = r.note;
+      } else {
+        $n.hidden = true;
+      }
+    }
+
+    async function verify(code) {
+      const clean = (code || "").trim();
+      if (!clean) {
+        $panel.hidden = true;
+        alert("Vui lòng nhập mã chứng chỉ.");
+        return;
+      }
+
       $btn.disabled = true;
       $btn.textContent = "Đang kiểm tra...";
       try {
-        const res = await fetch(`/api/verify?code=${encodeURIComponent(code)}`, { cache: "no-store" });
-        const data = await res.json().catch(() => ({ ok:false, message_vi:"Không đọc được dữ liệu trả về." }));
-        show(data);
+        const res = await fetch(`/api/verify?code=${encodeURIComponent(clean)}`, { cache: "no-store" });
+        const data = await res.json();
+        showRecord(data);
+        history.replaceState(null, "", `/verify/?code=${encodeURIComponent(clean)}`);
       } catch (e) {
-        show({ ok:false, message_vi:"Lỗi kết nối. Vui lòng thử lại." });
+        $panel.hidden = false;
+        setStatus("error");
+        $t.textContent = "Lỗi kết nối";
+        $m.textContent = "Vui lòng thử lại.";
+        $n.hidden = true;
       } finally {
         $btn.disabled = false;
         $btn.textContent = "Kiểm tra";
       }
     }
 
-    $btn.addEventListener("click", verify);
-    $code.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") verify();
+    $btn.addEventListener("click", ()=> verify($code.value));
+    $code.addEventListener("keydown", (e)=> { if (e.key === "Enter") verify($code.value); });
+
+    $copy.addEventListener("click", async () => {
+      const code = ($code.value || new URLSearchParams(location.search).get("code") || "").trim();
+      const link = `${location.origin}/verify/?code=${encodeURIComponent(code)}`;
+      try {
+        await navigator.clipboard.writeText(link);
+        $copy.textContent = "Đã copy ✓";
+        setTimeout(()=> $copy.textContent = "Copy link", 1200);
+      } catch {
+        prompt("Copy link:", link);
+      }
     });
+
+    // Auto-run if URL has ?code=
+    const q = new URLSearchParams(location.search);
+    const preset = (q.get("code") || "").trim();
+    if (preset) {
+      $code.value = preset;
+      verify(preset);
+    }
   </script>
 </body>
 </html>

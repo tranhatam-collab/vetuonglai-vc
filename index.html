@@ -2,50 +2,181 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <title>Chứng Chỉ Số & Xác Minh | Về Tương Lai</title>
+  <title>Vetuonglai VC | Chứng Chỉ Số & Xác Minh</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Nơi xác minh chứng chỉ số theo cách minh bạch, kiểm tra nhanh, không lộ thông tin thừa." />
   <link rel="stylesheet" href="/assets/styles.css" />
+  <style>
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .lang{display:flex;gap:8px;align-items:center}
+    .lang button{padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);color:#e9eef6;cursor:pointer}
+    .lang button.on{background:rgba(34,197,94,.10);border-color:rgba(34,197,94,.35);color:#86efac;font-weight:800}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px; margin-top:18px}
+    @media (max-width: 900px){ .grid{grid-template-columns:1fr} }
+    .card{border:1px solid rgba(255,255,255,.08);background:rgba(16,24,35,.75);border-radius:18px;padding:18px}
+    .card h2{margin:0 0 8px 0}
+    .muted{color:#a9b4c3}
+    .ctaRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    a.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);color:#e9eef6;text-decoration:none}
+    a.btn.primary{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.35)}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.4px;border:1px solid rgba(255,255,255,.08);background:rgba(148,163,184,.10);color:#a9b4c3}
+    .badge.ok{background:rgba(34,197,94,.10);border-color:rgba(34,197,94,.35);color:#86efac}
+    .line{border-top:1px solid rgba(255,255,255,.08);margin:22px 0}
+    .miniLinks{display:flex;gap:12px;flex-wrap:wrap}
+    .miniLinks a{color:#a9b4c3;text-decoration:none;border-bottom:1px dashed rgba(255,255,255,.14)}
+    .miniLinks a:hover{color:#e9eef6}
+    .foot{margin-top:26px;text-align:center;color:#a9b4c3}
+    code{color:#a9b4c3}
+  </style>
 </head>
-<body>
-  <header>
-    <nav class="nav">
-      <a class="brand" href="/">VC</a>
-      <div class="links">
-        <a href="/verify/">Xác minh</a>
-        <a class="muted" href="/issue/">Cấp chứng chỉ</a>
-        <a class="muted" href="https://vetuonglai.com/vi/">← Về Tương Lai</a>
-      </div>
-    </nav>
-  </header>
 
-  <main class="container">
-    <h1>Chứng Chỉ Số & Xác Minh</h1>
-    <p class="lead">
-      Nơi xác minh chứng chỉ số theo cách minh bạch, kiểm tra nhanh, không lộ thông tin thừa.
-      Đây là xương sống để mở rộng Web3 về sau.
+<body>
+  <main class="center" style="max-width:1100px;">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="font-weight:900; letter-spacing:.5px;">VC</div>
+        <span class="badge ok" id="statusBadge">LIVE</span>
+      </div>
+
+      <div class="lang" aria-label="Language toggle">
+        <button id="btnVI" class="on" type="button">VI</button>
+        <button id="btnEN" type="button">EN</button>
+        <a class="btn" href="https://vetuonglai.com/vi/" style="padding:8px 10px;">← Về Tương Lai</a>
+      </div>
+    </div>
+
+    <h1 id="h1" style="margin-top:18px;">Chứng Chỉ Số & Xác Minh</h1>
+    <p id="lead" class="muted" style="font-size:18px; line-height:1.6;">
+      Nơi xác minh chứng chỉ số theo cách minh bạch, kiểm tra nhanh, không lộ thông tin thừa. Đây là xương sống để mở rộng Web3 về sau.
     </p>
 
-    <section class="grid">
-      <a class="card" href="/verify/">
-        <h3>Xác minh</h3>
-        <p>Nhập mã hoặc quét QR để kiểm tra chứng chỉ.</p>
-        <div class="go">Mở trang xác minh →</div>
-      </a>
+    <div class="grid">
+      <!-- VERIFY CARD -->
+      <section class="card">
+        <div class="badge" id="bVerify">VERIFY</div>
+        <h2 id="tVerify" style="margin-top:10px;">Xác minh</h2>
+        <p id="dVerify" class="muted">Nhập mã hoặc quét QR để kiểm tra chứng chỉ trong vài giây.</p>
 
-      <div class="card disabled">
-        <h3>Cấp chứng chỉ</h3>
-        <p>Sắp mở. Dành cho tổ chức đã được xác thực.</p>
-        <div class="go muted">Đang khóa</div>
-      </div>
-    </section>
+        <div class="ctaRow">
+          <a class="btn primary" id="goVerify" href="/verify/">Mở trang xác minh →</a>
+          <a class="btn" id="goDemo" href="/verify/?code=VC-2026-0001">Test demo</a>
+        </div>
+
+        <div class="line"></div>
+        <div class="muted" id="tipVerify">
+          Mẹo: QR nên trỏ về link đẹp dạng <code>/v/VC-2026-0001</code>.
+        </div>
+      </section>
+
+      <!-- ISSUE CARD -->
+      <section class="card">
+        <div class="badge" id="bIssue">ISSUE</div>
+        <h2 id="tIssue" style="margin-top:10px;">Cấp chứng chỉ</h2>
+        <p id="dIssue" class="muted">Dành cho tổ chức. Hệ thống khóa ghi đè để tránh chỉnh sửa chứng chỉ cũ.</p>
+
+        <div class="ctaRow">
+          <a class="btn primary" id="goIssue" href="/issue/">Mở trang cấp chứng chỉ →</a>
+          <a class="btn" id="goRevokeHelp" href="/issue/">Thu hồi (Revoke)</a>
+        </div>
+
+        <div class="line"></div>
+        <div class="muted" id="policyIssue">
+          Chính sách: “Không chỉnh sửa nội dung chứng chỉ đã phát hành”. Chỉ tạo mã mới hoặc thu hồi minh bạch.
+        </div>
+      </section>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="miniLinks">
+      <a href="/v/VC-2026-0001" id="miniShare">Trang share mẫu /v/…</a>
+      <a href="/api/verify?code=VC-2026-0001" id="miniApi">API verify mẫu</a>
+      <a href="https://vetuonglai.com/en/" id="miniMain">Vetuonglai.com</a>
+    </div>
+
+    <div class="foot">© <span id="y"></span> Vetuonglai VC</div>
   </main>
 
-  <footer class="footer">
-    <div>© <span id="y"></span> Vetuonglai VC</div>
-  </footer>
-
   <script>
+    // ---- Language: simple, stable, no heavy i18n ----
+    const dict = {
+      vi: {
+        h1: "Chứng Chỉ Số & Xác Minh",
+        lead: "Nơi xác minh chứng chỉ số theo cách minh bạch, kiểm tra nhanh, không lộ thông tin thừa. Đây là xương sống để mở rộng Web3 về sau.",
+        tVerify: "Xác minh",
+        dVerify: "Nhập mã hoặc quét QR để kiểm tra chứng chỉ trong vài giây.",
+        goVerify: "Mở trang xác minh →",
+        goDemo: "Test demo",
+        tipVerify: "Mẹo: QR nên trỏ về link đẹp dạng /v/VC-2026-0001.",
+        tIssue: "Cấp chứng chỉ",
+        dIssue: "Dành cho tổ chức. Hệ thống khóa ghi đè để tránh chỉnh sửa chứng chỉ cũ.",
+        goIssue: "Mở trang cấp chứng chỉ →",
+        goRevokeHelp: "Thu hồi (Revoke)",
+        policyIssue: "Chính sách: “Không chỉnh sửa nội dung chứng chỉ đã phát hành”. Chỉ tạo mã mới hoặc thu hồi minh bạch.",
+        miniShare: "Trang share mẫu /v/…",
+        miniApi: "API verify mẫu"
+      },
+      en: {
+        h1: "Digital Credentials & Verification",
+        lead: "Verify credentials fast with minimal disclosure: transparent enough, private by default. This is the backbone for future Web3 expansion.",
+        tVerify: "Verify",
+        dVerify: "Enter a code or scan a QR to verify in seconds.",
+        goVerify: "Open verification →",
+        goDemo: "Demo test",
+        tipVerify: "Tip: QR should point to a clean share link like /v/VC-2026-0001.",
+        tIssue: "Issue credentials",
+        dIssue: "For organizations. Overwrite is locked to prevent editing old credentials.",
+        goIssue: "Open issuing →",
+        goRevokeHelp: "Revoke",
+        policyIssue: "Policy: issued credentials are not editable. Create new codes or revoke transparently.",
+        miniShare: "Sample share page /v/…",
+        miniApi: "Sample API verify"
+      }
+    };
+
+    const ids = ["h1","lead","tVerify","dVerify","goVerify","goDemo","tipVerify","tIssue","dIssue","goIssue","goRevokeHelp","policyIssue"];
+    const el = (id)=>document.getElementById(id);
+
+    function applyLang(lang){
+      const t = dict[lang] || dict.vi;
+      el("h1").textContent = t.h1;
+      el("lead").textContent = t.lead;
+
+      el("tVerify").textContent = t.tVerify;
+      el("dVerify").textContent = t.dVerify;
+      el("goVerify").textContent = t.goVerify;
+      el("goDemo").textContent = t.goDemo;
+      el("tipVerify").innerHTML = t.tipVerify.replace("/v/VC-2026-0001", "<code>/v/VC-2026-0001</code>");
+
+      el("tIssue").textContent = t.tIssue;
+      el("dIssue").textContent = t.dIssue;
+      el("goIssue").textContent = t.goIssue;
+      el("goRevokeHelp").textContent = t.goRevokeHelp;
+      el("policyIssue").textContent = t.policyIssue;
+
+      document.getElementById("btnVI").classList.toggle("on", lang==="vi");
+      document.getElementById("btnEN").classList.toggle("on", lang==="en");
+
+      // update some mini link labels
+      document.getElementById("miniShare").textContent = t.miniShare;
+      document.getElementById("miniApi").textContent = t.miniApi;
+
+      localStorage.setItem("lang", lang);
+      const url = new URL(location.href);
+      url.searchParams.set("lang", lang);
+      history.replaceState(null, "", url.toString());
+    }
+
+    // init
     document.getElementById("y").textContent = new Date().getFullYear();
+
+    const qsLang = new URLSearchParams(location.search).get("lang");
+    const saved = localStorage.getItem("lang");
+    const initLang = (qsLang === "en" || qsLang === "vi") ? qsLang : (saved || "vi");
+    applyLang(initLang);
+
+    document.getElementById("btnVI").onclick = ()=> applyLang("vi");
+    document.getElementById("btnEN").onclick = ()=> applyLang("en");
   </script>
 </body>
 </html>

@@ -3,7 +3,9 @@ export async function onRequestGet(context) {
   const code = String(params.code || "").trim().toUpperCase();
 
   const value = await env.VC_KV.get(code);
-  if (!value) return html(pageNotFound(code), 404);
+  if (!value) {
+    return html(pageNotFound(code), 404);
+  }
 
   let record;
   try { record = JSON.parse(value); }
@@ -21,14 +23,14 @@ export async function onRequestGet(context) {
   return html(pageCredential(origin, status, record), 200);
 }
 
-function esc(s){ return String(s||"").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
-
 function badge(status){
   if (status === "valid") return `<span class="b ok">HỢP LỆ</span>`;
   if (status === "revoked") return `<span class="b bad">THU HỒI</span>`;
   if (status === "expired") return `<span class="b warn">HẾT HẠN</span>`;
   return `<span class="b muted">KHÔNG RÕ</span>`;
 }
+
+function esc(s){ return String(s||"").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
 
 function pageCredential(origin, status, r){
   const title = `${r.code} | ${r.name}`;
@@ -42,10 +44,11 @@ function pageCredential(origin, status, r){
 <title>${esc(title)}</title>
 <meta name="description" content="Trang xác minh chứng chỉ: ${esc(r.code)}" />
 <meta property="og:title" content="${esc(title)}" />
-<meta property="og:description" content="Xác minh chứng chỉ số nhanh, minh bạch vừa đủ." />
+<meta property="og:description" content="Xác minh chứng chỉ số nhanh, minh bạch." />
 <meta property="og:type" content="website" />
 <link rel="stylesheet" href="/assets/styles.css" />
 <style>
+  body{background:#0b0f14;color:#e9eef6}
   .wrap{max-width:760px;margin:0 auto;padding:28px 18px}
   .card{border:1px solid rgba(255,255,255,.08);background:rgba(16,24,35,.75);border-radius:16px;padding:18px}
   .b{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.5px;border:1px solid rgba(255,255,255,.08)}
@@ -68,7 +71,6 @@ function pageCredential(origin, status, r){
     </div>
 
     <h1 style="margin:12px 0 6px;">${esc(r.name || "Chứng chỉ")}</h1>
-
     <div class="card">
       <div class="row"><div class="k">Mã</div><div class="v">${esc(r.code)}</div></div>
       <div class="row"><div class="k">Đơn vị cấp</div><div class="v">${esc(r.issuer || "—")}</div></div>

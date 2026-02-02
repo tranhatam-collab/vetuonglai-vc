@@ -25,8 +25,23 @@ export async function onRequestPost(context) {
   try { record = JSON.parse(value); }
   catch { return json({ ok:false, error:"bad_record", message_vi:"Dữ liệu chứng chỉ bị lỗi." }, 500); }
 
+  // Nếu đã thu hồi thì trả về luôn (không làm lại)
+  if (record.revokedAt) {
+    return json({
+      ok: true,
+      status: "revoked",
+      code,
+      record: publicView(record),
+      message_vi: "Chứng chỉ đã bị thu hồi trước đó.",
+      message_en: "Already revoked."
+    }, 200);
+  }
+
   record.revokedAt = new Date().toISOString().slice(0,10); // YYYY-MM-DD
   await env.VC_KV.put(code, JSON.stringify(record));
+
+  // ✅ Append-only audit log
+  await appendAudit(env, { action: "revoke", code });
 
   return json({
     ok:true,
@@ -41,6 +56,20 @@ export async function onRequestPost(context) {
 function publicView(r){
   return { code:r.code, name:r.name, issuer:r.issuer, issuedAt:r.issuedAt, expiresAt:r.expiresAt || null, note:r.note || null };
 }
+
+async function appendAudit(env, data){
+  const ts = new Date().toISOString();
+  const rand = Math.random().toString(36).slice(2, 10);
+  const key = `AUDIT:${data.code}:${ts}:${rand}`;
+  const entry = {
+    v: 1,
+    at: ts,
+    action: data.action,
+    code: data.code
+  };
+  await env.VC_KV.put(key, JSON.stringify(entry));
+}
+
 function json(obj, status=200){
   return new Response(JSON.stringify(obj, null, 2), {
     status,
